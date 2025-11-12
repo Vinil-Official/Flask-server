@@ -6,7 +6,7 @@ from supabase import create_client, Client
 
 # === 🧩 Configuration ===
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ayyeebkyroxnvsrfbldm.supabase.co")
-SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE", "")
+SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5eWVlYmt5cm94bnZzcmZibGRtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgzNjY0MSwiZXhwIjoyMDc4NDEyNjQxfQ.73UigmrHfsanehPPAIdDjN2BcEdEaCEOdRkLxqyxkC8")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "photos")
 
 # Local backup folder (optional)
