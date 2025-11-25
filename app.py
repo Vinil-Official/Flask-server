@@ -1,99 +1,72 @@
 from flask import Flask, request, jsonify
-import os
 import base64
 from datetime import datetime
-from supabase import create_client, Client
+import boto3
 
-# === 🧩 Configuration ===
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ayyeebkyroxnvsrfbldm.supabase.co")
-SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE", "")
-SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "photos")
+# === Cloudflare R2 Credentials ===
+R2_ACCOUNT_ID = "sLArTpRwbB62toF371Y7gzABNN7oTVZCl6hwmw-e"
+R2_ACCESS_KEY_ID = "9a667fbd282cc2c4ce76f5a10ee56788"
+R2_SECRET_ACCESS_KEY = "09db609dcfd6cb1916b41af104038ad3842b74750c16f47ded8bdcaf3e3312ba"
+R2_BUCKET_NAME = "my-images"
 
-# Local backup folder (optional)
-ROOT_SAVE = r"C:\Users\HP\Desktop\pyth"
-os.makedirs(ROOT_SAVE, exist_ok=True)
+# R2 endpoint (S3-compatible)
+R2_ENDPOINT = f"https://60c038f2076d034c5b7f26c79e1e5d3d.r2.cloudflarestorage.com/my-images
+"
 
-# Initialize Flask and Supabase
 app = Flask(__name__)
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 
+# Initialize the S3 client for Cloudflare R2
+s3 = boto3.client(
+    "s3",
+    endpoint_url=R2_ENDPOINT,
+    aws_access_key_id=R2_ACCESS_KEY_ID,
+    aws_secret_access_key=R2_SECRET_ACCESS_KEY
+)
 
-# === Helper: Create daily subfolder for local logs ===
-def get_save_folder():
-    today = datetime.now().strftime("%Y-%m-%d")
-    folder = os.path.join(ROOT_SAVE, today)
-    os.makedirs(folder, exist_ok=True)
-    return folder
-
-
-# === Upload Photo (Base64) ===
-@app.route("/upload_photo", methods=["POST"])
-def upload_photo():
+@app.route("/upload_r2", methods=["POST"])
+def upload_r2():
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({"error": "No JSON payload received"}), 400
 
-        filename = data.get("filename", f"photo_{datetime.now().strftime('%H%M%S')}.jpg")
-        img_data = data.get("data")
-        if not img_data:
+        filename = data.get("filename", f"img_{datetime.now().strftime('%H%M%S')}.jpg")
+        img_base64 = data.get("data")
+
+        if not img_base64:
             return jsonify({"error": "Missing image data"}), 400
 
-        # Decode base64 → bytes
-        img_bytes = base64.b64decode(img_data)
+        # Decode Base64 image → bytes
+        img_bytes = base64.b64decode(img_base64)
 
-        # Create a Supabase path (by date)
+        # Create folder based on date
         today = datetime.now().strftime("%Y-%m-%d")
-        supa_path = f"{today}/{filename}"
+        r2_path = f"{today}/{filename}"
 
-        # Upload to Supabase
-        res = supabase.storage.from_(SUPABASE_BUCKET).upload(supa_path, img_bytes)
+        # Upload to R2 bucket
+        s3.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=r2_path,
+            Body=img_bytes,
+            ContentType="image/jpeg",
+            ACL="public-read"
+        )
 
-        # Also save locally for backup
-        local_folder = get_save_folder()
-        local_path = os.path.join(local_folder, filename)
-        with open(local_path, "wb") as f:
-            f.write(img_bytes)
+        # Public URL
+        file_url = f"{R2_ENDPOINT}/{R2_BUCKET_NAME}/{r2_path}"
 
-        # Generate public URL
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{supa_path}"
-
-        print(f"✅ Uploaded: {filename} → {public_url}")
-        return jsonify({"status": "success", "url": public_url}), 200
+        return jsonify({
+            "status": "success",
+            "url": file_url,
+            "bucket": R2_BUCKET_NAME
+        }), 200
 
     except Exception as e:
-        print(f"❌ Upload error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-# === Receive Text or Device Info ===
-@app.route("/receive_output", methods=["POST"])
-def receive_output():
-    try:
-        text = request.get_data(as_text=True)
-        print("=== 📩 Received Text Data ===")
-        print(text)
-        print("==================================")
-
-        # Log to local file
-        folder = get_save_folder()
-        log_path = os.path.join(folder, "received_logs.txt")
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {text}\n")
-
-        return jsonify({"status": "success", "message": "Text received"}), 200
-
-    except Exception as e:
-        print(f"❌ Error receiving text: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-# === Health Check ===
 @app.route("/", methods=["GET"])
-def index():
-    return jsonify({"status": "running", "message": "✅ Flask + Supabase connected"}), 200
+def home():
+    return "R2 Upload API Running"
 
 
-# === Start the Server ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
