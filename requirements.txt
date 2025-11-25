@@ -4,5 +4,7 @@ Flask==3.0.3
 gunicorn==21.2.0
 supabase==2.5.1
 python-dotenv==1.0.1
+boto3
+
 
 
