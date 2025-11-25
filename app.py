@@ -10,8 +10,7 @@ R2_SECRET_ACCESS_KEY = "09db609dcfd6cb1916b41af104038ad3842b74750c16f47ded8bdcaf
 R2_BUCKET_NAME = "my-images"
 
 # R2 endpoint (S3-compatible)
-R2_ENDPOINT = f"https://60c038f2076d034c5b7f26c79e1e5d3d.r2.cloudflarestorage.com/my-images
-"
+R2_ENDPOINT = f"https://60c038f2076d034c5b7f26c79e1e5d3d.r2.cloudflarestorage.com/my-images"
 
 app = Flask(__name__)
 
